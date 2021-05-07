@@ -28,6 +28,12 @@ export const ButtonIcon = styled.View`
   justify-content: center;
 
   border-radius: 30px;
-  margin-right: 40px;
+`;
+
+export const HomeIcon = styled.View`
   margin-left: 40px;
+`;
+
+export const DeleteIcon = styled.View`
+  margin-right: 40px;
 `;

@@ -1,62 +1,85 @@
 import { useFonts } from 'expo-font';
 import React, { useState } from 'react';
-import { Text, Button } from 'react-native';
+import { Text, Button, Platform, } from 'react-native';
 import { Container, Textarea } from './styles';
 import InputScrollView from 'react-native-input-scroll-view';
-import { v4 as uuidv4 } from 'uuid';
-import Realm from 'realm';
+import uuid from 'react-native-uuid';
 import { TouchableOpacity } from 'react-native-gesture-handler';
+import * as SQLite from 'expo-sqlite';
 
-function NewCard() {
+function NewCard({ itemId }: any) {
+  function useForceUpdate() {
+    const [value, setValue] = useState(0);
+    return [() => setValue(value + 1), value];
+  }
+  
   const [inp, setInput] = useState("")
+  const [items, setItems] = useState({
+    id: "",
+    value: "",
+    created: "",
+  })
+
   const [size, setSize] = useState(0)
+  const [forceUpdate, forceUpdateId] = useForceUpdate();
 
   let [fontsLoaded] = useFonts({
     'Poppins': require('../../assets/fonts/Poppins-Medium.ttf'),
   });
 
-  const saveInDb = async () => {
-    const TaskSchema = {
-      name: "Task",
-      properties: {
-        _id: "int",
-        name: "string",
-        status: "string?",
-      },
-      primaryKey: "_id",
-    };
-
-    const realm = await Realm.open({
-      path: "myrealm",
-      schema: [TaskSchema],
-    });
-    
-    realm.write(() => {
-      realm.create("Task", {
-        _id: 1,
-        name: "go grocery shopping",
-        status: "Open",
-      });
-    })
-  }
-
-  const handleAddTodo = async () => {
-    try {
-      await saveInDb()
-      alert("saved")
-    } catch (error) {
-      alert(error)
+  function openDatabase() {
+    if (Platform.OS === "web") {
+      return {
+        transaction: () => {
+          return {
+            executeSql: () => {},
+          };
+        },
+      };
     }
+  
+    const db = SQLite.openDatabase("db.db");
+    return db;
+  }
+  
+  const db = openDatabase();
+
+  React.useEffect(() => {
+    db.transaction(
+      (tx) => {
+        tx.executeSql("select * from items where id = ?", [itemId], 
+          (_, { rows }: any) => setInput(rows._array[0].value)
+        );
+      }
+    );
+  }, []);
+  
+  const handleChange = async (text: string) => {
+    setInput(text)
+
+    db.transaction(
+      (tx: any) => {
+        tx.executeSql("UPDATE items SET value = ? WHERE id = ?", 
+          [text, itemId], 
+          null,
+        );
+      }
+    );
   }
 
   return (
     <Container>
+      <Text>
+        {
+          items.value
+        }
+      </Text>
       <InputScrollView>
         <Textarea
           multiline={true}
           underlineColorAndroid="transparent"
           placeholder="Type something"
-          onChangeText={handleAddTodo}
+          onChangeText={(text) => handleChange(text)}
           style={{ fontFamily: 'Poppins' }}
           spellCheck={false}
           autoCorrect={false}
